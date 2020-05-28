@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "jsx": "react",
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "lib": ["esnext", "dom"],
+        "target": "ES2019",
+        "module": "esnext",
+        "moduleResolution": "node",
+        "allowSyntheticDefaultImports": true,
+        "experimentalDecorators": true,
+        "strictNullChecks": true
+    },
+    "include": [
+        "src/"
+    ]
+}

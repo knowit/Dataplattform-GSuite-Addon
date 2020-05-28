@@ -1,0 +1,36 @@
+{
+  "name": "dataplattform-addon",
+  "version": "1.0.0",
+  "description": "",
+  "devDependencies": {
+    "@babel/core": "^7.10.1",
+    "@babel/preset-react": "^7.10.1",
+    "@babel/preset-typescript": "^7.10.1",
+    "@google/clasp": "^2.3.0",
+    "@types/google-apps-script": "^1.0.14",
+    "@types/jest": "^25.2.3",
+    "@types/node": "^14.0.5",
+    "@types/react": "^16.9.35",
+    "@types/react-dom": "^16.9.8",
+    "babel-core": "^6.26.3",
+    "babel-loader": "^8.1.0",
+    "clean-webpack-plugin": "^3.0.0",
+    "copy-webpack-plugin": "^6.0.1",
+    "html-webpack-inline-source-plugin": "^0.0.10",
+    "html-webpack-plugin": "^3.2.0",
+    "typescript": "^3.9.3",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11"
+  },
+  "dependencies": {
+    "@material-ui/core": "^4.10.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  },
+  "scripts": {
+    "build": "webpack --mode production",
+    "push": "npm run build && clasp push"
+  },
+  "author": "",
+  "license": "MIT"
+}
