@@ -7,6 +7,11 @@ interface DocumentProps {
     tableName: string
 }
 
+interface PostData {
+    success: boolean
+    message?: string
+}
+
 interface FormsItem {
     title: string
     id: number
@@ -22,6 +27,8 @@ interface FormsDocumentProps extends DocumentProps {
     selectedItems: FormsItem[]
 }
 
+interface PostFormsData extends PostData {}
+
 interface SheetsData {
     columnNames: string[],
     name: string
@@ -34,7 +41,4 @@ interface SheetsDocumentProps extends DocumentProps {
     lastPushDate: string | null
 }
 
-interface PostSheetsData {
-    success: boolean
-    message?: string
-}
+interface PostSheetsData extends PostData {}

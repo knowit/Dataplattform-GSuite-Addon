@@ -42,7 +42,7 @@ interface LinearStepperProps {
     invalid?: boolean,
     loading?: boolean,
     getStepContent: (step: number) => JSX.Element | null | undefined
-    onChangeStep?: (step: number) => void
+    onChangeStep?: (step: number, prevStep: number) => void
     onComplete?: () => void
 }
 
@@ -69,7 +69,7 @@ export default function LinearStepper(
 
     const handleNext = () => {
         const nextStep = activeStep + 1
-        onChangeStep(nextStep)
+        onChangeStep(nextStep, activeStep)
         if (nextStep === steps.length) {
             onComplete()
         }
@@ -78,7 +78,7 @@ export default function LinearStepper(
 
     const handleBack = () => {
         const nextStep = activeStep - 1
-        onChangeStep(nextStep)
+        onChangeStep(nextStep, activeStep)
         setNextActiveStep(nextStep)
     }
 

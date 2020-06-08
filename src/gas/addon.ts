@@ -20,6 +20,33 @@ const onOpen = (_ : OnOpenEvent) => {
 
 const onInstall = (e : OnInstallEvent) => onOpen(e as OnOpenEvent)
 
+const onFormSubmit = (e : GoogleAppsScript.Events.FormsOnFormSubmit) => {
+    const url = PropertiesService.getScriptProperties().getProperty('formsUrl') 
+    const apiKey = PropertiesService.getScriptProperties().getProperty('apiKey')
+    const { tableName, selectedItems, ..._} = getFormsDocumentProperties()
+
+    if (!url || !apiKey)
+        throw 'invalid setup'
+
+    const response = toReponsePayload(e.response, selectedItems.map(x => e.source.getItemById(x.id)))
+
+    const resp = UrlFetchApp.fetch(url, {
+        'method' : 'post',
+        'contentType': 'application/json',
+        'headers': {
+            'x-api-key': apiKey
+        },
+        'payload' : JSON.stringify({
+            tableName,
+            responses: [response],
+            user: Session.getEffectiveUser().getEmail()
+        })
+    })
+
+    if (resp.getResponseCode() != 200){
+        throw  `server error: ${resp.getResponseCode()}`
+    }
+}
 
 /**
  *  UI
@@ -42,16 +69,34 @@ const getUi = (app : AppsScriptApp ) : AppsScriptUi | null => {
     return null
 }
 
-function setDocumentProperties<T>(update: T, tag: string) {
-    PropertiesService.getDocumentProperties().setProperty(tag, JSON.stringify(update))
-}
 
 function getDocumentProperties<T>(defaultProps: T, tag: string) : T {
     const props = PropertiesService.getDocumentProperties().getProperty(tag)
     return props ? JSON.parse(props) as T : defaultProps
 }
 
+function setDocumentProperties<T>(update: T, tag: string) {
+    PropertiesService.getDocumentProperties().setProperty(tag, JSON.stringify(update))
+}
+
 const asTableName = (name: string) => name.toLowerCase().replace(/\s/g, '_')
+
+const toReponsePayload = (
+    response: GoogleAppsScript.Forms.FormResponse,
+    questions: GoogleAppsScript.Forms.Item[]
+) => {
+    return {
+        respondent: response.getRespondentEmail(),
+        timestamp: response.getTimestamp().toISOString(),
+        answers: questions.map(item => response.getResponseForItem(item)).filter(x => Boolean(x)).map(itemResponse => {
+            return {
+                questionsTitle: itemResponse.getItem().getTitle(),
+                questionId: itemResponse.getItem().getId(),
+                response: itemResponse.getResponse()
+            }
+        })
+    }
+}
 
 
 /**
@@ -76,8 +121,49 @@ const getFormsDocumentProperties = () : FormsDocumentProps => getDocumentPropert
         selectedItems: listFormsItems(), // Default all selected
         tableName: asTableName(FormApp.getActiveForm().getTitle()), // Default name of form
     }, 'formsProps')
-
 const updateFormsDocumentProperties = (update: FormsDocumentProps) => setDocumentProperties(update, 'formsProps')
+
+const postForms = (tableName: string, questionIds: number[]) : PostFormsData => {
+    const form = FormApp.getActiveForm()
+    const questions = questionIds.map(x => form.getItemById(x))
+
+    const url = PropertiesService.getScriptProperties().getProperty('formsUrl') 
+    const apiKey = PropertiesService.getScriptProperties().getProperty('apiKey')
+
+    if (!url || !apiKey)
+        return { success: false, message: 'invalid setup' }
+
+    
+    const responses = form.getResponses().map(response => toReponsePayload(response, questions))
+       
+    const resp = UrlFetchApp.fetch(url, {
+        'method' : 'post',
+        'contentType': 'application/json',
+        'headers': {
+            'x-api-key': apiKey
+        },
+        'payload' : JSON.stringify({
+            tableName,
+            responses: responses,
+            user: Session.getEffectiveUser().getEmail()
+        })
+    });
+
+    if (resp.getResponseCode() != 200){
+        return { success: false, message: `server error: ${resp.getResponseCode()}` }
+    }
+
+    if (ScriptApp.getUserTriggers(form).length !== 1)
+        ScriptApp.newTrigger('onFormSubmit').forForm(form).onFormSubmit().create()
+
+    updateFormsDocumentProperties({
+        syncing: true,
+        tableName,
+        selectedItems: questions.map(x => {return {'title': x.getTitle(), 'id': x.getId()}})
+    })
+    
+    return { success: true }
+}
 
 
 const getSheetsData = (selection : boolean) : SheetsData => {

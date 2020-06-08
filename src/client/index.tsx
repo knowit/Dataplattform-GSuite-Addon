@@ -2,7 +2,7 @@ import React from "react"
 import ReactDOM from 'react-dom';
 import { LinearProgress, Typography } from "@material-ui/core"
 import { useServiceData } from "./hooks"
-import FormsApp from "./forms/FormsApp"
+import FormsApp from "./FormsApp"
 import SheetsApp from "./SheetsApp"
 
 

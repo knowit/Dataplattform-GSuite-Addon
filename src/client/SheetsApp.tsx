@@ -31,13 +31,13 @@ const SheetsDataList = (props : SheetsData) =>
     </Paper>
 
 
-type SetupProps = SheetsDocumentProps & { onDone: () => void }
+type SheetsSetupProps = SheetsDocumentProps & { onDone: () => void }
 
 
 const SetupForm = ({
     tableName: currentTableName,
     onDone
-} : SetupProps) => {
+} : SheetsSetupProps) => {
     const [
         sheetProps, 
         sheetLoadingProps, 
@@ -116,7 +116,7 @@ const Setup = ({
     lastPushDate,
     tableName,
     onDone
-} : SetupProps) => {
+} : SheetsSetupProps) => {
     const [hasPush, setHasPush] = useState(Boolean(lastPushDate))
 
     return (
