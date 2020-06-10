@@ -28,7 +28,7 @@ const onFormSubmit = (e : GoogleAppsScript.Events.FormsOnFormSubmit) => {
     if (!url || !apiKey)
         throw 'invalid setup'
 
-    const response = toReponsePayload(e.response, selectedItems.map(x => e.source.getItemById(x.id)))
+    const response = toReponsePayload(e.response, selectedItems.map(x => e.source.getItemById(x.id)), e.source.isQuiz())
 
     const resp = UrlFetchApp.fetch(url, {
         'method' : 'post',
@@ -60,8 +60,19 @@ const openUi = () => {
 /**
  * Util
  */
-const listFormsItems = () : FormsItem[] => 
-    FormApp.getActiveForm().getItems().map(x => {return {'title': x.getTitle(), 'id': x.getId()}})
+const listFormsItems = () : FormsItem[] => {
+    const invalidItemTypes = [
+        FormApp.ItemType.PAGE_BREAK, 
+        FormApp.ItemType.PARAGRAPH_TEXT, 
+        FormApp.ItemType.SECTION_HEADER, 
+        FormApp.ItemType.IMAGE, 
+        FormApp.ItemType.VIDEO]
+
+    return FormApp.getActiveForm()
+        .getItems()
+        .filter(x => !invalidItemTypes.includes(x.getType()))
+        .map(x => {return {'title': x.getTitle(), 'id': x.getId()}})
+}
 
 const getUi = (app : AppsScriptApp ) : AppsScriptUi | null => {
     try { return app ? app.getUi() : null }
@@ -81,20 +92,144 @@ function setDocumentProperties<T>(update: T, tag: string) {
 
 const asTableName = (name: string) => name.toLowerCase().replace(/\s/g, '_')
 
+const getTypeData = (item: GoogleAppsScript.Forms.Item, isQuiz: boolean) => {
+    type ChoiceDataItem = 
+        GoogleAppsScript.Forms.ListItem | 
+        GoogleAppsScript.Forms.CheckboxItem | 
+        GoogleAppsScript.Forms.MultipleChoiceItem
+
+    const choiceData = (choiceItem: ChoiceDataItem) => isQuiz 
+        ? {
+            choices: choiceItem.getChoices().map(x => { return {value: x.getValue(), isCorrect: x.isCorrectAnswer()}})
+        } 
+        : {
+            choices: choiceItem.getChoices().map(x => { return {value: x.getValue()}})
+        }
+
+    type GridDataItem = 
+        GoogleAppsScript.Forms.CheckboxGridItem | 
+        GoogleAppsScript.Forms.GridItem
+        
+    const gridData = (gridItem: GridDataItem) => {
+        return {
+            columns: gridItem.getColumns(),
+            rows: gridItem.getRows()
+        }
+    }
+
+    switch(item.getType()) {
+        case FormApp.ItemType.CHECKBOX:
+            return choiceData(item.asCheckboxItem())
+        case FormApp.ItemType.LIST:
+            return choiceData(item.asListItem())
+        case FormApp.ItemType.MULTIPLE_CHOICE:
+            return choiceData(item.asMultipleChoiceItem())
+        case FormApp.ItemType.CHECKBOX_GRID:
+            return gridData(item.asCheckboxGridItem())
+        case FormApp.ItemType.GRID:
+            return gridData(item.asGridItem())
+        case FormApp.ItemType.SCALE:
+            const scaleItem = item.asScaleItem()
+            return {
+                leftLabel: scaleItem.getLeftLabel(),
+                rightLavel: scaleItem.getRightLabel(),
+                lowerBound: scaleItem.getLowerBound(),
+                upperBound: scaleItem.getUpperBound()
+            }
+    }
+    return {}
+}
+
+const getTypeQuizData = (item: GoogleAppsScript.Forms.Item) => {
+    type QuizListDataItem = 
+        GoogleAppsScript.Forms.CheckboxItem |
+        GoogleAppsScript.Forms.ListItem | 
+        GoogleAppsScript.Forms.MultipleChoiceItem
+
+    type QuizDataItem = 
+        GoogleAppsScript.Forms.DateItem |
+        GoogleAppsScript.Forms.DateTimeItem | 
+        GoogleAppsScript.Forms.DurationItem | 
+        GoogleAppsScript.Forms.ScaleItem | 
+        GoogleAppsScript.Forms.TextItem | 
+        GoogleAppsScript.Forms.TimeItem 
+
+    const quizListData = (quizItem: QuizListDataItem) => {
+        return {
+            points: quizItem.getPoints(),
+            feedbackCorrect: quizItem.getFeedbackForCorrect() 
+                ? quizItem.getFeedbackForCorrect().getText()
+                : null,
+            feedbackIncorrect: quizItem.getFeedbackForIncorrect()
+                ? quizItem.getFeedbackForIncorrect().getText()
+                : null
+        }
+    }
+
+    const quizData = (quizItem: QuizDataItem) => {
+        return {
+            points: quizItem.getPoints(),
+            feedback: quizItem.getGeneralFeedback() 
+                ? quizItem.getGeneralFeedback().getText() 
+                : null
+        }
+    }
+
+    switch(item.getType()) {
+        case FormApp.ItemType.CHECKBOX:
+            return quizListData(item.asCheckboxItem())
+        case FormApp.ItemType.LIST:
+            return quizListData(item.asListItem())
+        case FormApp.ItemType.MULTIPLE_CHOICE:
+            return quizListData(item.asMultipleChoiceItem())
+        
+        case FormApp.ItemType.DATETIME:
+            return quizData(item.asDateItem())
+        case FormApp.ItemType.DATETIME:
+            return quizData(item.asDateTimeItem())
+        case FormApp.ItemType.DURATION:
+            return quizData(item.asDurationItem())
+        case FormApp.ItemType.SCALE:
+            return quizData(item.asDurationItem())
+        case FormApp.ItemType.TEXT:
+            return quizData(item.asTextItem())
+        case FormApp.ItemType.TIME:
+            return quizData(item.asTextItem())   
+    }
+    return {}
+}
+
 const toReponsePayload = (
     response: GoogleAppsScript.Forms.FormResponse,
-    questions: GoogleAppsScript.Forms.Item[]
+    questions: GoogleAppsScript.Forms.Item[],
+    isQuiz: boolean
 ) => {
     return {
         respondent: response.getRespondentEmail(),
         timestamp: response.getTimestamp().toISOString(),
-        answers: questions.map(item => response.getResponseForItem(item)).filter(x => Boolean(x)).map(itemResponse => {
-            return {
-                questionsTitle: itemResponse.getItem().getTitle(),
-                questionId: itemResponse.getItem().getId(),
-                response: itemResponse.getResponse()
-            }
-        })
+        id: response.getId(),
+        isQuiz,
+        questions: questions
+            .map((item) : [GoogleAppsScript.Forms.Item, GoogleAppsScript.Forms.ItemResponse | null] => [item, response.getResponseForItem(item)])
+            .map(([item, itemResponse]) => {
+                return {
+                    title: item.getTitle(),
+                    helpText: item.getHelpText(),
+                    id: item.getId(),
+                    type: FormApp.ItemType[item.getType()],
+                    answer: itemResponse ?  {
+                        response: itemResponse.getResponse(),
+                        ...(isQuiz ? {
+                            feedback: itemResponse.getFeedback(),
+                            score: itemResponse.getScore(),
+                        } : {}) 
+                    } : null,
+                    typeData: {
+                        ...getTypeData(item, isQuiz),
+                        ...(isQuiz ? getTypeQuizData(item) : {})
+                    }
+                }
+            })
     }
 }
 
@@ -134,7 +269,7 @@ const postForms = (tableName: string, questionIds: number[]) : PostFormsData => 
         return { success: false, message: 'invalid setup' }
 
     
-    const responses = form.getResponses().map(response => toReponsePayload(response, questions))
+    const responses = form.getResponses().map(response => toReponsePayload(response, questions, form.isQuiz()))
        
     const resp = UrlFetchApp.fetch(url, {
         'method' : 'post',
