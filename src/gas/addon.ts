@@ -63,7 +63,6 @@ const openUi = () => {
 const listFormsItems = () : FormsItem[] => {
     const invalidItemTypes = [
         FormApp.ItemType.PAGE_BREAK, 
-        FormApp.ItemType.PARAGRAPH_TEXT, 
         FormApp.ItemType.SECTION_HEADER, 
         FormApp.ItemType.IMAGE, 
         FormApp.ItemType.VIDEO]
