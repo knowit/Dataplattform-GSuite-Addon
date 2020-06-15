@@ -182,18 +182,18 @@ const getTypeQuizData = (item: GoogleAppsScript.Forms.Item) => {
         case FormApp.ItemType.MULTIPLE_CHOICE:
             return quizListData(item.asMultipleChoiceItem())
         
-        case FormApp.ItemType.DATETIME:
+        case FormApp.ItemType.DATE:
             return quizData(item.asDateItem())
         case FormApp.ItemType.DATETIME:
             return quizData(item.asDateTimeItem())
         case FormApp.ItemType.DURATION:
             return quizData(item.asDurationItem())
         case FormApp.ItemType.SCALE:
-            return quizData(item.asDurationItem())
+            return quizData(item.asScaleItem())
         case FormApp.ItemType.TEXT:
             return quizData(item.asTextItem())
         case FormApp.ItemType.TIME:
-            return quizData(item.asTextItem())   
+            return quizData(item.asTimeItem())   
     }
     return {}
 }
