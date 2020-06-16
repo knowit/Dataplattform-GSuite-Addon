@@ -28,7 +28,7 @@ const onFormSubmit = (e : GoogleAppsScript.Events.FormsOnFormSubmit) => {
     if (!url || !apiKey)
         throw 'invalid setup'
 
-    const response = toReponsePayload(e.response, selectedItems.map(x => e.source.getItemById(x.id)), e.source.isQuiz())
+    const response = toReponsePayload(e.response, selectedItems.map(x => e.source.getItemById(x.id)).filter(item => item), e.source.isQuiz())
 
     const resp = UrlFetchApp.fetch(url, {
         'method' : 'post',
@@ -208,7 +208,7 @@ const toReponsePayload = (
         timestamp: response.getTimestamp().toISOString(),
         id: response.getId(),
         isQuiz,
-        questions: questions
+        questions: questions.filter(item => item)
             .map((item) : [GoogleAppsScript.Forms.Item, GoogleAppsScript.Forms.ItemResponse | null] => [item, response.getResponseForItem(item)])
             .map(([item, itemResponse]) => {
                 return {
@@ -218,8 +218,10 @@ const toReponsePayload = (
                     type: FormApp.ItemType[item.getType()],
                     answer: itemResponse ?  {
                         response: itemResponse.getResponse(),
-                        ...(isQuiz ? {
-                            feedback: itemResponse.getFeedback(),
+                        ...(isQuiz && ![FormApp.ItemType.CHECKBOX_GRID, FormApp.ItemType.GRID, FormApp.ItemType.MULTIPLE_CHOICE].includes(item.getType()) ? {
+                            feedback: itemResponse.getFeedback() 
+                                ? itemResponse.getFeedback().getText()
+                                : null,
                             score: itemResponse.getScore(),
                         } : {}) 
                     } : null,
@@ -259,7 +261,7 @@ const updateFormsDocumentProperties = (update: FormsDocumentProps) => setDocumen
 
 const postForms = (tableName: string, questionIds: number[]) : PostFormsData => {
     const form = FormApp.getActiveForm()
-    const questions = questionIds.map(x => form.getItemById(x))
+    const questions = questionIds.map(x => form.getItemById(x)).filter(item => item)
 
     const url = PropertiesService.getScriptProperties().getProperty('formsUrl') 
     const apiKey = PropertiesService.getScriptProperties().getProperty('apiKey')
